@@ -220,6 +220,10 @@ public class Launcher extends Activity {
         options.add(new Option("NX_TRACE_PERF", "Estadísticas detalladas de rendimiento", "Detailed performance logging",
                 new String[] {"0", "1"}, new String[] {"Desactivado", "Activado"},
                 new String[] {"Off", "On"}, 0));
+        options.add(new Option("NX_PIPE_PREWARM", "Precalentamiento de pipelines (experimental)",
+                "Pipeline prewarming (experimental)", new String[] {"1", "0"},
+                new String[] {"Activado (recomendado)", "Desactivado"},
+                new String[] {"On (recommended)", "Off"}, 0));
         options.add(new Option("NX_AFFINITY", "Afinidad de CPU (experimental)", "CPU affinity (experimental)",
                 new String[] {"0", "2", "1"},
                 new String[] {"Sistema Android", "Optimizada (recomendada)", "Separar hilos de cuadro"},
