@@ -3,6 +3,9 @@ name: P4G Beta
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main, pipeline-cache-flush-on-pause]
+
 
 permissions:
   contents: read
