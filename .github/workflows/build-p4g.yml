@@ -166,6 +166,53 @@ jobs:
             build-apk/shader-libs/libc++_shared.so
           if-no-files-found: error
 
+      - name: Strip native libraries for release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          LLVM_STRIP="$ANDROID_HOME/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          LLVM_READELF="$ANDROID_HOME/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+
+          test -x "$LLVM_STRIP"
+          test -x "$LLVM_READELF"
+
+          libraries=(
+            build-p4g/libp4g.so
+            build-p4g/libp4gimport.so
+            build-p4g/adrenotools/src/hook/libhook_impl.so
+            build-p4g/adrenotools/src/hook/libmain_hook.so
+            build-p4g/adrenotools/src/hook/libfile_redirect_hook.so
+            build-p4g/adrenotools/src/hook/libgsl_alloc_hook.so
+            build-apk/shader-libs/libspirvharness.so
+            build-apk/shader-libs/libc++_shared.so
+          )
+
+          before=0
+          after=0
+          for library in "${libraries[@]}"; do
+            test -s "$library"
+            original_size=$(stat -c '%s' "$library")
+            before=$((before + original_size))
+
+            "$LLVM_STRIP" --strip-unneeded "$library"
+
+            stripped_size=$(stat -c '%s' "$library")
+            after=$((after + stripped_size))
+            printf '%s: %s -> %s bytes\n' "$library" "$original_size" "$stripped_size"
+
+            if "$LLVM_READELF" --sections "$library" | grep -qE '\.debug_|\.symtab'; then
+              echo "Debug or static symbol sections remain in $library" >&2
+              exit 1
+            fi
+          done
+
+          echo "Native libraries: $before -> $after bytes"
+          if [ "$after" -gt "$before" ]; then
+            echo "Stripping unexpectedly increased the native library total." >&2
+            exit 1
+          fi
+
       - name: Compile P4G Java classes
         shell: bash
         run: |
@@ -431,6 +478,14 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs \
             "build-apk/P4G.apk"
           test -s "build-apk/P4G.apk"
+
+          APK_SIZE=$(stat -c '%s' "build-apk/P4G.apk")
+          MAX_APK_SIZE=$((16 * 1024 * 1024))
+          echo "Release APK size: $APK_SIZE bytes (limit: $MAX_APK_SIZE)"
+          if [ "$APK_SIZE" -gt "$MAX_APK_SIZE" ]; then
+            echo "Release APK is unexpectedly large; verify that native libraries were stripped." >&2
+            exit 1
+          fi
 
 
       - name: Upload P4G APK
